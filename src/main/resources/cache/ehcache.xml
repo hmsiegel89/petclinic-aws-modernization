@@ -1,17 +1,21 @@
-<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="ehcache.xsd"
-         updateCheck="false">
-    <diskStore path="java.io.tmpdir"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.ehcache.org/v3"
+        xmlns:jsr107="http://www.ehcache.org/v3/jsr107"
+        xsi:schemaLocation="
+            http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core-3.0.xsd
+            http://www.ehcache.org/v3/jsr107 http://www.ehcache.org/schema/ehcache-107-ext-3.0.xsd">
+
+    <service>
+        <jsr107:defaults enable-management="false" enable-statistics="false"/>
+    </service>
 
     <!-- objects are evicted from the cache every 60 seconds -->
-    <cache name="vets"
-           timeToLiveSeconds="60"
-           maxElementsInMemory="100"
-           eternal="false"
-           overflowToDisk="false"
-           maxElementsOnDisk="10000000"
-           diskPersistent="false"
-           diskExpiryThreadIntervalSeconds="1"
-           memoryStoreEvictionPolicy="LRU"/>
+    <cache alias="vets">
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
+        <heap unit="entries">100</heap>
+    </cache>
 
-</ehcache>
+</config>

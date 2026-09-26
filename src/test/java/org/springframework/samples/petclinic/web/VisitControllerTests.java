@@ -3,13 +3,18 @@ package org.springframework.samples.petclinic.web;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.mockito.ArgumentCaptor;
 import org.springframework.samples.petclinic.model.Pet;
+import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -74,5 +79,33 @@ class VisitControllerTests {
             .andExpect(view().name("visitList"));
     }
 
+    @Test
+    void testProcessNewVisitFormSavesVisitAttachedToThePet() throws Exception {
+        Pet pet = new Pet();
+        pet.setId(TEST_PET_ID);
+        given(this.clinicService.findPetById(TEST_PET_ID)).willReturn(pet);
+
+        mockMvc.perform(post("/owners/*/pets/{petId}/visits/new", TEST_PET_ID)
+            .param("description", "rabies shot")
+        ).andExpect(status().is3xxRedirection());
+
+        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
+        verify(this.clinicService).saveVisit(saved.capture());
+        assertThat(saved.getValue().getDescription()).isEqualTo("rabies shot");
+        assertThat(saved.getValue().getPet()).isSameAs(pet);
+    }
+
+    @Test
+    void testShowVisitsExposesThePetVisits() throws Exception {
+        Pet pet = new Pet();
+        Visit visit = new Visit();
+        visit.setDescription("checkup");
+        pet.addVisit(visit);
+        given(this.clinicService.findPetById(TEST_PET_ID)).willReturn(pet);
+
+        mockMvc.perform(get("/owners/*/pets/{petId}/visits", TEST_PET_ID))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("visits", hasItem(visit)));
+    }
 
 }
