@@ -1,4 +1,6 @@
+import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -16,6 +18,10 @@ export interface ContainerServiceProps {
   readonly dbEndpoint: string;
   readonly dbPort: string;
   readonly dbName: string;
+  /** Build the image from the repository Dockerfile instead of pulling it from ECR. */
+  readonly buildFromSource?: boolean;
+  /** ACM certificate for the HTTPS listener; when absent the ALB only serves HTTP. */
+  readonly certificateArn?: string;
   readonly containerPort?: number;
   readonly healthCheckPath?: string;
   readonly desiredCount?: number;
@@ -39,12 +45,18 @@ export class ContainerService extends Construct {
     super(scope, id);
 
     const containerPort = props.containerPort ?? 8080;
-    const healthCheckPath = props.healthCheckPath ?? '/';
+    const healthCheckPath = props.healthCheckPath ?? '/health';
+
+    if (props.imageTag === 'latest') {
+      throw new Error(
+        'imageTag must be an immutable tag (for example a commit sha); "latest" is not allowed.',
+      );
+    }
 
     this.repository = new ecr.Repository(this, 'Repository', {
       repositoryName: `petclinic-${props.envName}`,
       imageScanOnPush: true,
-      imageTagMutability: ecr.TagMutability.MUTABLE,
+      imageTagMutability: ecr.TagMutability.IMMUTABLE,
       encryption: ecr.RepositoryEncryption.AES_256,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lifecycleRules: [
@@ -73,30 +85,20 @@ export class ContainerService extends Construct {
       },
     });
 
-    const jdbcUrl = `jdbc:postgresql://${props.dbEndpoint}:${props.dbPort}/${props.dbName}`;
+    const dbUrl = `jdbc:postgresql://${props.dbEndpoint}:${props.dbPort}/${props.dbName}`;
 
     taskDefinition.addContainer('app', {
-      image: ecs.ContainerImage.fromEcrRepository(this.repository, props.imageTag),
+      image: props.buildFromSource
+        ? ecs.ContainerImage.fromAsset(path.join(__dirname, '..', '..'), { file: 'Dockerfile' })
+        : ecs.ContainerImage.fromEcrRepository(this.repository, props.imageTag),
       portMappings: [{ containerPort, protocol: ecs.Protocol.TCP }],
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'app', logGroup: this.logGroup }),
       environment: {
-        SPRING_PROFILES_ACTIVE: 'postgres',
-        JDBC_URL: jdbcUrl,
-        POSTGRES_URL: jdbcUrl,
-        POSTGRES_HOST: props.dbEndpoint,
-        POSTGRES_PORT: props.dbPort,
-        POSTGRES_DB: props.dbName,
+        DB_URL: dbUrl,
       },
       secrets: {
-        POSTGRES_USER: ecs.Secret.fromSecretsManager(props.dbSecret, 'username'),
-        POSTGRES_PASS: ecs.Secret.fromSecretsManager(props.dbSecret, 'password'),
-      },
-      healthCheck: {
-        command: ['CMD-SHELL', `curl -f http://localhost:${containerPort}${healthCheckPath} || exit 1`],
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(5),
-        retries: 3,
-        startPeriod: cdk.Duration.seconds(120),
+        DB_USER: ecs.Secret.fromSecretsManager(props.dbSecret, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(props.dbSecret, 'password'),
       },
     });
 
@@ -117,7 +119,7 @@ export class ContainerService extends Construct {
       circuitBreaker: { rollback: true },
       minHealthyPercent: 50,
       maxHealthyPercent: 200,
-      enableExecuteCommand: true,
+      enableExecuteCommand: props.envName !== 'prod',
     });
 
     this.loadBalancer = new elbv2.ApplicationLoadBalancer(this, 'LoadBalancer', {
@@ -127,11 +129,34 @@ export class ContainerService extends Construct {
       idleTimeout: cdk.Duration.seconds(60),
     });
 
-    const listener = this.loadBalancer.addListener('HttpListener', {
-      port: 80,
-      protocol: elbv2.ApplicationProtocol.HTTP,
-      open: true,
-    });
+    let listener: elbv2.ApplicationListener;
+    if (props.certificateArn) {
+      this.loadBalancer.addListener('HttpRedirectListener', {
+        port: 80,
+        protocol: elbv2.ApplicationProtocol.HTTP,
+        open: true,
+        defaultAction: elbv2.ListenerAction.redirect({
+          protocol: 'HTTPS',
+          port: '443',
+          permanent: true,
+        }),
+      });
+      listener = this.loadBalancer.addListener('HttpsListener', {
+        port: 443,
+        protocol: elbv2.ApplicationProtocol.HTTPS,
+        open: true,
+        certificates: [
+          acm.Certificate.fromCertificateArn(this, 'Certificate', props.certificateArn),
+        ],
+        sslPolicy: elbv2.SslPolicy.RECOMMENDED_TLS,
+      });
+    } else {
+      listener = this.loadBalancer.addListener('HttpListener', {
+        port: 80,
+        protocol: elbv2.ApplicationProtocol.HTTP,
+        open: true,
+      });
+    }
 
     this.targetGroup = listener.addTargets('FargateTargets', {
       port: containerPort,

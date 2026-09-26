@@ -8,6 +8,8 @@ import { Network } from './network';
 export interface PetclinicStackProps extends cdk.StackProps {
   readonly envName: string;
   readonly imageTag: string;
+  readonly buildFromSource?: boolean;
+  readonly certificateArn?: string;
 }
 
 export class PetclinicStack extends cdk.Stack {
@@ -29,6 +31,8 @@ export class PetclinicStack extends cdk.Stack {
       dbEndpoint: database.instance.dbInstanceEndpointAddress,
       dbPort: database.instance.dbInstanceEndpointPort,
       dbName: database.databaseName,
+      buildFromSource: props.buildFromSource,
+      certificateArn: props.certificateArn,
     });
 
     database.allowFrom(app.service, 'PetClinic Fargate tasks');
@@ -46,7 +50,7 @@ export class PetclinicStack extends cdk.Stack {
     cdk.Tags.of(this).add('Environment', props.envName);
 
     new cdk.CfnOutput(this, 'LoadBalancerUrl', {
-      value: `http://${app.loadBalancer.loadBalancerDnsName}`,
+      value: `${props.certificateArn ? 'https' : 'http'}://${app.loadBalancer.loadBalancerDnsName}`,
       description: 'Public URL of the application load balancer',
     });
     new cdk.CfnOutput(this, 'EcrRepositoryUri', {
