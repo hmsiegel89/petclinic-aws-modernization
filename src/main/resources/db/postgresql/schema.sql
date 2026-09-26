@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS vets (
 
 CREATE INDEX IF NOT EXISTS idx_vets_last_name ON vets (last_name);
 
-ALTER SEQUENCE vets_id_seq RESTART WITH 100;
+SELECT setval('vets_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM vets), 99));
 
 
 CREATE TABLE IF NOT EXISTS specialties (
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS specialties (
 
 CREATE INDEX IF NOT EXISTS idx_specialties_name ON specialties (name);
 
-ALTER SEQUENCE specialties_id_seq RESTART WITH 100;
+SELECT setval('specialties_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM specialties), 99));
 
 
 CREATE TABLE IF NOT EXISTS vet_specialties (
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS types (
 
 CREATE INDEX IF NOT EXISTS idx_types_name ON types (name);
 
-ALTER SEQUENCE types_id_seq RESTART WITH 100;
+SELECT setval('types_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM types), 99));
 
 CREATE TABLE IF NOT EXISTS owners (
   id SERIAL,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS owners (
 
 CREATE INDEX IF NOT EXISTS idx_owners_last_name ON owners (last_name);
 
-ALTER SEQUENCE owners_id_seq RESTART WITH 100;
+SELECT setval('owners_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM owners), 99));
 
 
 CREATE TABLE IF NOT EXISTS pets (
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS pets (
 
 CREATE INDEX IF NOT EXISTS idx_pets_name ON pets (name);
 
-ALTER SEQUENCE pets_id_seq RESTART WITH 100;
+SELECT setval('pets_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM pets), 99));
 
 
 CREATE TABLE IF NOT EXISTS visits (
@@ -81,4 +81,4 @@ CREATE TABLE IF NOT EXISTS visits (
   CONSTRAINT pk_visits PRIMARY KEY (id)
 );
 
-ALTER SEQUENCE visits_id_seq RESTART WITH 100;
+SELECT setval('visits_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM visits), 99));
