@@ -1,5 +1,5 @@
 <%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
-<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
 <%@ attribute name="active" required="true" rtexprvalue="true" %>
 <%@ attribute name="url" required="true" rtexprvalue="true" %>

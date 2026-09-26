@@ -25,9 +25,11 @@
     <!-- DataSource configuration for the tomcat jdbc connection pool 
     See here for more details on commons-dbcp versus tomcat-jdbc: 
     http://blog.ippon.fr/2013/03/13/improving-the-performance-of-the-spring-petclinic-sample-application-part-3-of-5/-->
+    <!-- DB_URL / DB_USER / DB_PASSWORD (environment variables or system properties) take
+         precedence over the build-time defaults from data-access.properties. -->
     <bean id="dataSource" class="org.apache.tomcat.jdbc.pool.DataSource"
-          p:driverClassName="${jdbc.driverClassName}" p:url="${jdbc.url}"
-          p:username="${jdbc.username}" p:password="${jdbc.password}"/>
+          p:driverClassName="${jdbc.driverClassName}" p:url="${DB_URL:${jdbc.url}}"
+          p:username="${DB_USER:${jdbc.username}}" p:password="${DB_PASSWORD:${jdbc.password}}"/>
 
     <!-- Database initializer. If any of the script fails, the initialization stops. -->
     <!-- As an alternative, for embedded databases see <jdbc:embedded-database/>. -->
