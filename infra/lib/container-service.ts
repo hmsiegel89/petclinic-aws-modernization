@@ -60,7 +60,11 @@ export class ContainerService extends Construct {
       encryption: ecr.RepositoryEncryption.AES_256,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lifecycleRules: [
-        { description: 'Keep the last 10 images', maxImageCount: 10 },
+        {
+          description: 'Expire untagged images after 14 days',
+          tagStatus: ecr.TagStatus.UNTAGGED,
+          maxImageAge: cdk.Duration.days(14),
+        },
       ],
     });
 
@@ -85,7 +89,7 @@ export class ContainerService extends Construct {
       },
     });
 
-    const dbUrl = `jdbc:postgresql://${props.dbEndpoint}:${props.dbPort}/${props.dbName}`;
+    const dbUrl = `jdbc:postgresql://${props.dbEndpoint}:${props.dbPort}/${props.dbName}?sslmode=require`;
 
     taskDefinition.addContainer('app', {
       image: props.buildFromSource

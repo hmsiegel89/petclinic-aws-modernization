@@ -29,10 +29,21 @@ export class Database extends Construct {
       excludeCharacters: ' %+~`#$&*()|[]{}:;<>?!\'/@"\\',
     });
 
+    const engine = rds.DatabaseInstanceEngine.postgres({
+      version: rds.PostgresEngineVersion.VER_16_4,
+    });
+
+    const parameterGroup = new rds.ParameterGroup(this, 'ParameterGroup', {
+      engine,
+      description: 'PetClinic PostgreSQL parameters',
+      parameters: {
+        'rds.force_ssl': '1',
+      },
+    });
+
     this.instance = new rds.DatabaseInstance(this, 'Postgres', {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_4,
-      }),
+      engine,
+      parameterGroup,
       instanceType:
         props.instanceType ?? ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
       vpc: props.vpc,
