@@ -1,0 +1,11 @@
+# The repository root ignores any directory named "bin" (Eclipse output); the
+# CDK entrypoint lives in infra/bin and must be tracked.
+!bin/
+
+node_modules
+cdk.out
+cdk.context.json
+*.js
+!jest.config.js
+*.d.ts
+.cdk.staging
